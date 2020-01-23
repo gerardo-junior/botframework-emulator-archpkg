@@ -1,0 +1,50 @@
+# Maintainer: Gerardo Junior <me@gerardo-junior.com>
+_pkgname=botframework-emulator
+pkgname=$_pkgname-bin
+pkgver=4.7.0
+pkgrel=0
+pkgdesc="Bot Framework Emulator"
+arch=('x86_64')
+url="https://github.com/microsoft/BotFramework-Emulator.git"
+license=('custom:microsoft')
+depends=('libsecret 
+          electron')
+makedepends=('p7zip')
+options=(!strip)
+source_x86_64=("${_pkgname}-${pkgver}.AppImage::https://github.com/microsoft/BotFramework-Emulator/releases/download/v${pkgver}/BotFramework-Emulator-${pkgver}-linux-${arch}.AppImage"
+               "LICENSE::https://raw.githubusercontent.com/microsoft/BotFramework-Emulator/v${pkgver}/LICENSE.txt")
+sha256sums_x86_64=('eb4028045430a506fc272d4f0e41af28919ed7bc0091dda729ab9fe31d3b7fe8'
+                   '31bec773a6a3d56327cdc6149027250e6730014ba46a0ad432e8e11914baae52')
+
+prepare() {
+	mkdir -p "$_pkgname"
+	cd "$srcdir/$_pkgname"
+	7z x "$srcdir/$_pkgname-$pkgver.AppImage"
+	sed -i "s/Exec=AppRun/Exec=/usr/bin/${_pkgname}/" @bfemulatormain.desktop
+}
+
+package() {
+    cd "$srcdir/$_pkgname"
+
+    # Install application
+	install -Dm644 resources/app.asar "$pkgdir/usr/share/$_pkgname/app.asar"
+	cd resources/plugins
+	find . -type f -exec install -Dm644 {} "$pkgdir/usr/share/$_pkgname/libs/{}" \;
+
+    # Install start script
+	echo "#!/usr/bin/env sh
+          exec electron /usr/share/${_pkgname}/app.asar \$@" > "$srcdir/${_pkgname}.sh"
+	install -Dm755 "$srcdir/${_pkgname}.sh" "$pkgdir/usr/bin/${_pkgname}"
+
+    # Install desktop file
+	install -Dm644 "$srcdir/$_pkgname/@bfemulatormain.desktop" "$pkgdir/usr/share/applications/${_pkgname}.desktop"
+
+    # Symlink license
+    install -Dm644 "${srcdir}/LICENSE" "${pkgdir}/usr/share/${_pkgname}/LICENSE"
+    mkdir -p "${pkgdir}/usr/share/licenses/$_pkgname"
+    ln -s "/usr/share/${_pkgname}/LICENSE" "$pkgdir/usr/share/licenses/$_pkgname"
+
+    # Install icons
+	cd "$srcdir/$_pkgname/usr/share/icons/hicolor"
+	find . -type f -exec install -Dm644 {} "$pkgdir/usr/share/icons/hicolor/{}" \;
+}
